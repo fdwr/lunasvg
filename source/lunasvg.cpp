@@ -76,6 +76,9 @@ std::uint32_t Bitmap::stride() const
 
 void Bitmap::clear(std::uint32_t color)
 {
+    if (!m_impl)
+        return;
+
     auto r = (color >> 24) & 0xFF;
     auto g = (color >> 16) & 0xFF;
     auto b = (color >> 8) & 0xFF;
@@ -85,6 +88,9 @@ void Bitmap::clear(std::uint32_t color)
     auto pg = (g * a) / 255;
     auto pb = (b * a) / 255;
 
+    std::uint8_t colorAsBytes[4] = { std::uint8_t(pb), std::uint8_t(pg), std::uint8_t(pr), std::uint8_t(a) };
+    memcpy(&color, &colorAsBytes, 4);
+
     auto width = this->width();
     auto height = this->height();
     auto stride = this->stride();
@@ -92,14 +98,10 @@ void Bitmap::clear(std::uint32_t color)
 
     for(std::uint32_t y = 0;y < height;y++)
     {
-        auto data = rowData;
+        uint32_t* columnData = reinterpret_cast<uint32_t*>(rowData);
         for(std::uint32_t x = 0;x < width;x++)
         {
-            data[0] = pb;
-            data[1] = pg;
-            data[2] = pr;
-            data[3] = a;
-            data += 4;
+            columnData[x] = color;
         }
         rowData += stride;
     }
@@ -107,6 +109,9 @@ void Bitmap::clear(std::uint32_t color)
 
 void Bitmap::convert(int ri, int gi, int bi, int ai, bool unpremultiply)
 {
+    if (!m_impl)
+        return;
+
     auto width = this->width();
     auto height = this->height();
     auto stride = this->stride();
@@ -276,6 +281,23 @@ std::unique_ptr<Document> Document::loadFromFile(const std::string& filename)
     return loadFromData(content);
 }
 
+#if defined(_WIN32) || defined(WIN32)
+// Windows uses UTF-16 for filenames, from file picker dialogs and drag&drop...
+std::unique_ptr<Document> Document::loadFromFile(const std::wstring& filename)
+{
+    std::ifstream fs;
+    fs.open(filename);
+    if(!fs.is_open())
+        return nullptr;
+
+    std::string content;
+    std::getline(fs, content, '\0');
+    fs.close();
+
+    return loadFromData(content);
+}
+#endif
+
 std::unique_ptr<Document> Document::loadFromData(const std::string& string)
 {
     return loadFromData(string.data(), string.size());
@@ -288,7 +310,7 @@ std::unique_ptr<Document> Document::loadFromData(const char* data, std::size_t s
         return nullptr;
 
     auto root = parser.layout();
-    if(!root || root->children.empty())
+    if(!root)
         return nullptr;
 
     std::unique_ptr<Document> document(new Document);
@@ -400,6 +422,15 @@ Bitmap Document::renderToBitmap(std::uint32_t width, std::uint32_t height, std::
     bitmap.clear(backgroundColor);
     render(bitmap, matrix);
     return bitmap;
+}
+
+void Document::enumerateContours(EnumerateContoursSink& sink, const Matrix& matrix) const
+{
+    RenderState state(nullptr, RenderMode::Display);
+    // Do not waste time and space allocating a canvas (unlike render) since pixels are not needed.
+    state.transform = Transform(matrix);
+    sink.SetTransform(state.transform);
+    root->enumerateContours(state, sink);
 }
 
 Document::Document()

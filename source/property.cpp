@@ -190,6 +190,17 @@ Transform& Transform::identity()
     return *this;
 }
 
+bool Transform::isIdentity() const
+{
+    return
+        this->m00 == 1.0 &&
+        this->m01 == 0.0 &&
+        this->m10 == 0.0 &&
+        this->m11 == 1.0 &&
+        this->m02 == 0.0 &&
+        this->m12 == 0.0;
+}
+
 Transform& Transform::invert()
 {
     *this = inverted();
@@ -578,6 +589,12 @@ double Length::value(double max) const
         return m_value * dpi / 6.0;
     case LengthUnits::Percent:
         return m_value * max / 100.0;
+    case LengthUnits::Em:
+        // 1 em simply equals the current DPI.
+        return m_value * dpi;
+    case LengthUnits::Ex:
+        // 1 ex equals half an em.
+        return m_value * dpi / 2.0;
     default:
         break;
     }

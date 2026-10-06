@@ -124,6 +124,18 @@ private:
     std::shared_ptr<Impl> m_impl;
 };
 
+struct LUNASVG_API EnumerateContoursSink
+{
+    virtual void SetTransform(const Matrix& matrix) = 0;
+    virtual void Begin() = 0;
+    virtual void Move(double x, double y) = 0;
+    virtual void Line(double x1, double y1, double x2, double y2) = 0;
+    virtual void Cubic(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4) = 0;
+    virtual void Anchor(double x, double y) = 0;
+    virtual void Close() = 0;
+    virtual void End() = 0; // Closes any open figures too.
+};
+
 class LayoutSymbol;
 
 class LUNASVG_API Document
@@ -135,6 +147,11 @@ public:
      * @return pointer to document on success, otherwise nullptr
      */
     static std::unique_ptr<Document> loadFromFile(const std::string& filename);
+
+    #if defined(_WIN32) || defined(WIN32)
+    // Windows uses UTF-16 for filenames, from file picker dialogs and drag&drop...
+    static std::unique_ptr<Document> loadFromFile(const std::wstring& filename);
+    #endif
 
     /**
      * @brief Creates a document from a string
@@ -244,8 +261,8 @@ public:
 
     /**
      * @brief Renders the document to a bitmap
-     * @param matrix - the current transformation matrix
      * @param bitmap - target image on which the content will be drawn
+     * @param matrix - the current transformation matrix
      */
     void render(Bitmap bitmap, const Matrix& matrix = Matrix{}) const;
 
@@ -257,6 +274,13 @@ public:
      * @return the raster representation of the document
      */
     Bitmap renderToBitmap(std::uint32_t width = 0, std::uint32_t height = 0, std::uint32_t backgroundColor = 0x00000000) const;
+
+    /**
+     * @brief Enumerates all the contours (lines, beziers...) inside the SVG via callback sink.
+     * @param sink - interface to receive geometry calls
+     * @param matrix - the current transformation matrix
+     */
+    void enumerateContours(EnumerateContoursSink& sink, const Matrix& matrix = {}) const;
 
     ~Document();
 private:
