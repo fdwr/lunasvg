@@ -359,7 +359,7 @@ Path Parser::parsePath(const std::string& string)
         {
             lastCommand = command;
             command = *ptr++;
-        }
+    }
     }
 
     return path;
@@ -751,7 +751,7 @@ Paint Parser::parsePaint(const std::string& string, const StyledElement* element
     if(!Utils::readUntil(ptr, end, ')', ref))
         return defaultValue;
 
-    ++ptr;
+        ++ptr;
     Utils::skipWs(ptr, end);
 
     std::string fallback{ptr, end};
